@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Body
+from fastapi import FastAPI, HTTPException, Body, Header
 from pydantic import BaseModel
 from passlib.context import CryptContext
 import sqlite3
@@ -122,7 +122,10 @@ def add_menu_item(item_name: str, item_price: int, category: str):
     """
     Inserts a completely new food item details into the menu table.
     """
+    if item_price <= 0:
+        raise HTTPException(status_code=400, detail="price must be positive and greater than zero")
     try:
+        print(f"DEBUG: Attempting to add menu item {item_name} with price {item_price}")
         connection = call_database()
         cursor = connection.cursor()
         query = "INSERT INTO menu (item_name, item_price, category) VALUES (?, ?, ?)"
@@ -211,6 +214,11 @@ def login_user(user_data: UserLogin = Body(...)):
             "exp": datetime.datetime.utcnow() + datetime.timedelta(minutes=30)
         }
         token = jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+        
+        # Safe string handling check for compatibility
+        if isinstance(token, bytes):
+            token = token.decode('utf-8')
+            
         return {"access_token": token, "token_type": "bearer", "status": "Login successful"}
     except Exception as e:
         if isinstance(e, HTTPException):
@@ -223,7 +231,10 @@ def place_new_order(order_data: placeorder = Body(...)):
     """
     Fetches base food price, calculates total bill, and logs the final order.
     """
+    if order_data.quantity <= 0:
+        raise HTTPException(status_code=400, detail="order quantity must be at least 1 or more.")
     try:
+        print(f"DEBUG: Processing order for user ID {order_data.user_id}, Item ID {order_data.item_id}, Qty {order_data.quantity}")
         connection = call_database()
         cursor = get_dict_cursor(connection)
         query = "SELECT item_price FROM menu WHERE item_id = ?"
@@ -277,10 +288,23 @@ def get_order_history(user_id: int, page: int = 1, limit: int = 5, order_status:
 
 
 @app.get("/analytics/report", tags=["Business Intelligence Analytics"], summary="Get order counts grouped by status")
-def get_business_report(status: str = None):
+def get_business_report(status: str = None, authorization: str = Header(None)):
     """
     Uses database grouping options to count orders sorted by fulfillment status.
+    Protected by secure JWT signature evaluation checking.
     """
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="unauthorized: Token missing or Invalid")
+    
+    # 🔒 ACTUAL TOKEN VALIDATION: Decodes to prove it isn't forged
+    token = authorization.split(" ")[1]
+    try:
+        jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="unauthorized: Token has expired")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="unauthorized: Cryptographic signature mismatch")
+
     try:
         connection = call_database()
         cursor = get_dict_cursor(connection)
