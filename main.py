@@ -1,10 +1,11 @@
 from fastapi import FastAPI, HTTPException, Body, Header
 from pydantic import BaseModel
 from passlib.context import CryptContext
-import sqlite3
+import mysql.connector
 import jwt
 import datetime
 from typing import List
+import os
 
 app = FastAPI()
 
@@ -15,47 +16,25 @@ ALGORITHM = "HS256"
 
 # --- Database Setup ---
 def call_database():
-    connection = sqlite3.connect("restaurant.db", check_same_thread=False)
-    
-    # Automatically build the backend tables on startup if they do not exist
-    cursor = connection.cursor()
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS menu (
-        item_id INTEGER PRIMARY KEY AUTOINCREMENT,
-        item_name TEXT NOT NULL,
-        item_price INTEGER NOT NULL,
-        category TEXT NOT NULL
-    );
-    """)
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS userinformation (
-        user_id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_name TEXT NOT NULL,
-        email TEXT UNIQUE NOT NULL,
-        password TEXT NOT NULL
-    );
-    """)
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS orders (
-        order_id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER NOT NULL,
-        item_id INTEGER NOT NULL,
-        quantity INTEGER NOT NULL,
-        total_price REAL NOT NULL,
-        order_status TEXT DEFAULT 'Pending'
-    );
-    """)
-    connection.commit()
-    return connection
+    return mysql.connector.connect(
+        host=os.getenv("DB_HOST"),
+        user=os.getenv("DB_USER"),
+        password=os.getenv("DB_PASS"),
+        database=os.getenv("DB_NAME"),
+        port=os.getenv("DB_PORT"),
+        ssl_ca=None  
+    )
 
-# Helper utility to mimic MySQL's dictionary=True functionality smoothly
-def get_dict_cursor(connection):
-    connection.row_factory = lambda cursor, row: {col[0]: row[idx] for idx, col in enumerate(cursor.description)}
-    return connection.cursor()
-
+# Example usage:
+try:
+    conn = call_database()
+    print("Successfully connected to the database!")
+    conn.close()
+except Exception as e:
+    print(f"Error connecting to database: {e}")
+     
 
 # PYDANTIC REQUEST / RESPONSE MODELS
-
 class MenuResponse(BaseModel):
     item_id: int
     item_name: str
@@ -89,7 +68,6 @@ class OrderResponse(BaseModel):
     status: str
     total_bill: float
 
-
 # ENDPOINTS 
 
 @app.get("/", tags=["System Vitals"], summary="Root system check")
@@ -100,6 +78,7 @@ def home():
     return {"message": "welcome to happy kitchen"}
 
 
+
 @app.get("/menu", response_model=List[MenuResponse], tags=["Menu Management"], summary="Fetch entire food menu")
 def get_menu():
     """
@@ -107,14 +86,16 @@ def get_menu():
     """
     try:
         connection = call_database()
-        cursor = get_dict_cursor(connection)
-        cursor.execute("SELECT * FROM menu")
+        cursor = connection.cursor(dictionary=True)
+        cursor.execute("SELECT * FROM eleven.menu")
         menu = cursor.fetchall()
         cursor.close()
         connection.close()
         return menu
-    except sqlite3.Error as dbrrr:
+    except mysql.connector.Error as dbrrr:
         raise HTTPException(status_code=500, detail=str(dbrrr))
+
+
 
 
 @app.post("/menu", tags=["Menu Management"], summary="Add a new dish to the menu")
@@ -122,20 +103,20 @@ def add_menu_item(item_name: str, item_price: int, category: str):
     """
     Inserts a completely new food item details into the menu table.
     """
-    if item_price <= 0:
-        raise HTTPException(status_code=400, detail="price must be positive and greater than zero")
+    if item_price <= 0: raise HTTPException(status_code=400, detail="Price must be positive")
     try:
-        print(f"DEBUG: Attempting to add menu item {item_name} with price {item_price}")
         connection = call_database()
         cursor = connection.cursor()
-        query = "INSERT INTO menu (item_name, item_price, category) VALUES (?, ?, ?)"
+        query = "INSERT INTO eleven.menu (item_name, item_price, category) VALUES (%s, %s, %s)"
         cursor.execute(query, (item_name, item_price, category))
         connection.commit()
         cursor.close()
         connection.close()
         return {"status": "success", "message": "Item added successfully"}
-    except sqlite3.Error as dbrrr:
+    except mysql.connector.Error as dbrrr:
         raise HTTPException(status_code=500, detail=str(dbrrr))
+
+
 
 
 @app.put("/menu/{item_id}", tags=["Menu Management"], summary="Update an existing menu item")
@@ -146,14 +127,16 @@ def update_menu_items(item_id: int, item_name: str, item_price: int, category: s
     try:
         connection = call_database()
         cursor = connection.cursor()
-        query = "UPDATE menu SET item_name=?, item_price=?, category=? WHERE item_id=?"
+        query = "UPDATE eleven.menu SET item_name=%s, item_price=%s, category=%s WHERE item_id=%s"
         cursor.execute(query, (item_name, item_price, category, item_id))
         connection.commit()
         cursor.close()
         connection.close()
         return {"status": "updated successfully"}
-    except sqlite3.Error as dbrrr:
+    except mysql.connector.Error as dbrrr:
         raise HTTPException(status_code=500, detail=str(dbrrr))
+
+
 
 
 @app.delete("/menu/{item_id}", tags=["Menu Management"], summary="Remove a dish from the menu")
@@ -164,14 +147,16 @@ def delete_menu_item(item_id: int):
     try:
         connection = call_database()
         cursor = connection.cursor()
-        query = "DELETE FROM menu WHERE item_id=?"
+        query = "DELETE FROM eleven.menu WHERE item_id=%s"
         cursor.execute(query, (item_id,))
         connection.commit()
         cursor.close()
         connection.close()
         return {"status": "deleted successfully"}
-    except sqlite3.Error as dbrrr:
+    except mysql.connector.Error as dbrrr:
         raise HTTPException(status_code=500, detail=str(dbrrr))
+
+
 
 
 @app.post("/register", response_model=RegisterResponse, tags=["Identity & Security"], summary="Register a new customer account")
@@ -183,14 +168,16 @@ def register_user(user: UserRegister = Body(...)):
         connection = call_database()
         cursor = connection.cursor()
         hashed_password = pwd_context.hash(user.password)
-        query = "INSERT INTO userinformation (user_name, email, password) VALUES (?, ?, ?)"
+        query = "INSERT INTO eleven.userinformation (user_name, email, password) VALUES (%s, %s, %s)"
         cursor.execute(query, (user.user_name, user.email, hashed_password))
         connection.commit()
         cursor.close()
         connection.close()
         return {"status": "success", "message": "Registration successful"}
-    except sqlite3.Error as dbrrr:
+    except mysql.connector.Error as dbrrr:
         raise HTTPException(status_code=400, detail=str(dbrrr))
+
+
 
 
 @app.post("/login", response_model=LoginResponse, tags=["Identity & Security"], summary="Authenticate user and issue JWT token")
@@ -200,30 +187,32 @@ def login_user(user_data: UserLogin = Body(...)):
     """
     try:
         connection = call_database()
-        cursor = get_dict_cursor(connection)
-        query = "SELECT * FROM userinformation WHERE email = ?"
+        cursor = connection.cursor(dictionary=True)
+        query = "SELECT * FROM eleven.userinformation WHERE email = %s"
         cursor.execute(query, (user_data.email,))
         user = cursor.fetchone()
         cursor.close()
         connection.close()
-        if not user or not pwd_context.verify(user_data.password, user['password']):
-            raise HTTPException(status_code=400, detail="Invalid Credentials")
-            
-        payload = {
-            "user_id": user['user_id'],
-            "exp": datetime.datetime.utcnow() + datetime.timedelta(minutes=30)
-        }
-        token = jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+        if user is None:
+            raise HTTPException(status_code=400, detail="Invalid email or password")
         
-        # Safe string handling check for compatibility
-        if isinstance(token, bytes):
-            token = token.decode('utf-8')
+        password_matches = pwd_context.verify(user_data.password, user['password'])
+        if not password_matches:
+            raise HTTPException(status_code=400, detail="Invalid email or password")
             
-        return {"access_token": token, "token_type": "bearer", "status": "Login successful"}
-    except Exception as e:
-        if isinstance(e, HTTPException):
-            raise e
-        raise HTTPException(status_code=400, detail=str(e))
+        expire = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(minutes=30)
+        token_payload = {
+            "email": user['email'],
+            "exp": expire
+        }
+        
+        token = jwt.encode(token_payload, SECRET_KEY, algorithm=ALGORITHM)
+        return {"access_token": token, "token_type": "bearer", "status": "Login Successful!"}
+        
+    except mysql.connector.Error as db_err:
+        raise HTTPException(status_code=500, detail=f"Database verification error: {db_err.msg}")
+
+
 
 
 @app.post("/orders", response_model=OrderResponse, tags=["Transactional Orders"], summary="Place a live food order")
@@ -231,13 +220,12 @@ def place_new_order(order_data: placeorder = Body(...)):
     """
     Fetches base food price, calculates total bill, and logs the final order.
     """
-    if order_data.quantity <= 0:
-        raise HTTPException(status_code=400, detail="order quantity must be at least 1 or more.")
+    if order_data.quantity <= 0: 
+        raise HTTPException(status_code=400, detail="Quantity must be > 0")
     try:
-        print(f"DEBUG: Processing order for user ID {order_data.user_id}, Item ID {order_data.item_id}, Qty {order_data.quantity}")
         connection = call_database()
-        cursor = get_dict_cursor(connection)
-        query = "SELECT item_price FROM menu WHERE item_id = ?"
+        cursor = connection.cursor(dictionary=True)
+        query = "SELECT item_price FROM eleven.menu WHERE item_id = %s"
         cursor.execute(query, (order_data.item_id,))
         menu = cursor.fetchone()
         
@@ -248,17 +236,17 @@ def place_new_order(order_data: placeorder = Body(...)):
             
         item_price = menu['item_price']
         calculated_total = item_price * order_data.quantity
-        
-        insert_query = "INSERT INTO orders (user_id, item_id, quantity, total_price) VALUES (?, ?, ?, ?)"
+        insert_query = "INSERT INTO eleven.orders (user_id, item_id, quantity, total_price) VALUES (%s, %s, %s, %s)"
         cursor.execute(insert_query, (order_data.user_id, order_data.item_id, order_data.quantity, calculated_total))
         connection.commit()
         cursor.close()
         connection.close()
         return {"status": "Order Placed Successfully!", "total_bill": float(calculated_total)}
     except Exception as e:
-        if isinstance(e, HTTPException):
-            raise e
+        if isinstance(e, HTTPException): raise e
         raise HTTPException(status_code=500, detail=str(e))
+
+
 
 
 @app.get("/orders/{user_id}", tags=["Order History"], summary="Fetch historical paginated order history")
@@ -268,16 +256,14 @@ def get_order_history(user_id: int, page: int = 1, limit: int = 5, order_status:
     """
     try:
         connection = call_database()
-        cursor = get_dict_cursor(connection)
+        cursor = connection.cursor(dictionary=True)
         offset = (page - 1) * limit
-        
         if order_status:
-            query = "SELECT * FROM orders WHERE user_id = ? AND order_status = ? LIMIT ? OFFSET ?"
+            query = "SELECT * FROM eleven.orders WHERE user_id = %s AND order_status = %s LIMIT %s OFFSET %s"
             params = (user_id, order_status, limit, offset)
         else:
-            query = "SELECT * FROM orders WHERE user_id = ? LIMIT ? OFFSET ?"
+            query = "SELECT * FROM eleven.orders WHERE user_id = %s LIMIT %s OFFSET %s"
             params = (user_id, limit, offset)
-            
         cursor.execute(query, params)
         history = cursor.fetchall()
         cursor.close()
@@ -287,61 +273,48 @@ def get_order_history(user_id: int, page: int = 1, limit: int = 5, order_status:
         raise HTTPException(status_code=500, detail=str(e))
 
 
+
 @app.get("/analytics/report", tags=["Business Intelligence Analytics"], summary="Get order counts grouped by status")
 def get_business_report(status: str = None, authorization: str = Header(None)):
     """
     Uses database grouping options to count orders sorted by fulfillment status.
-    Protected by secure JWT signature evaluation checking.
     """
-    if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="unauthorized: Token missing or Invalid")
-    
-    # 🔒 ACTUAL TOKEN VALIDATION: Decodes to prove it isn't forged
-    token = authorization.split(" ")[1]
-    try:
-        jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-    except jwt.ExpiredSignatureError:
-        raise HTTPException(status_code=401, detail="unauthorized: Token has expired")
-    except jwt.InvalidTokenError:
-        raise HTTPException(status_code=401, detail="unauthorized: Cryptographic signature mismatch")
-
+    if not authorization or not authorization.startswith("Bearer "): 
+        raise HTTPException(status_code=401, detail="Unauthorized")
     try:
         connection = call_database()
-        cursor = get_dict_cursor(connection)
+        cursor = connection.cursor(dictionary=True)
         if status:
-            query = "SELECT order_status, COUNT(*) as count FROM orders WHERE order_status = ? GROUP BY order_status"
+            query = "SELECT order_status, COUNT(*) as count FROM eleven.orders WHERE order_status = %s GROUP BY order_status"
             cursor.execute(query, (status,))
         else:
-            query = "SELECT order_status, COUNT(*) as count FROM orders GROUP BY order_status"
+            query = "SELECT order_status, COUNT(*) as count FROM eleven.orders GROUP BY order_status"
             cursor.execute(query)
-            
         report = cursor.fetchall()
         cursor.close()
         connection.close()
         return report
-    except sqlite3.Error as dbrrr:
+    except mysql.connector.Error as dbrrr:
         raise HTTPException(status_code=500, detail=str(dbrrr))
 
 
+
+
 @app.get("/analytics/basic-report", tags=["Business Intelligence Analytics"], summary="Get gross revenue metrics")
-def get_basic_financial_report():
+def get_basic_financial_report(authorization: str = Header(None)):
     """
     Runs native SQL aggregations to calculate total revenue metrics and customer volumes.
     """
+    if not authorization or not authorization.startswith("Bearer "): 
+        raise HTTPException(status_code=401, detail="Unauthorized")
     try:
         connection = call_database()
-        cursor = get_dict_cursor(connection)
-        query = """
-            SELECT 
-                SUM(total_price) as gross_revenue, 
-                COUNT(*) as total_orders, 
-                COUNT(DISTINCT user_id) as unique_customers 
-            FROM orders
-        """
+        cursor = connection.cursor(dictionary=True)
+        query = "SELECT SUM(total_price) as gross_revenue, COUNT(*) as total_orders, COUNT(DISTINCT user_id) as unique_customers FROM eleven.orders"
         cursor.execute(query)
         report = cursor.fetchone()
         cursor.close()
         connection.close()
         return report
-    except sqlite3.Error as dbrrr:
+    except mysql.connector.Error as dbrrr:
         raise HTTPException(status_code=500, detail=str(dbrrr))
