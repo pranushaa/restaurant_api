@@ -6,7 +6,7 @@ import jwt
 import datetime
 
 app = FastAPI()
-pwd_context=CryptContext(schemes=["md5_crypt"], deprecated="auto")
+pwd_context=CryptContext(schemes=["bcrypt"], deprecated="auto")
 SECRET_KEY = "SUPER_SECRET_KEY"
 ALGORITHM = "HS256"
 def call_database():
