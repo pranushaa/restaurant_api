@@ -14,18 +14,20 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 SECRET_KEY = "SUPER_SECRET_KEY"
 ALGORITHM = "HS256"
 
-# --- Database Setup ---
+import os
+import mysql.connector
+
 def call_database():
+    # This code pulls the secret details from your Render Environment tab
     return mysql.connector.connect(
         host=os.getenv("DB_HOST"),
         user=os.getenv("DB_USER"),
         password=os.getenv("DB_PASS"),
         database=os.getenv("DB_NAME"),
-        port=os.getenv("DB_PORT"),
-        ssl_ca=None  
+        port=int(os.getenv("DB_PORT", 13080)) 
     )
 
-# Example usage:
+# The 'try' block ensures your app stays alive even if the connection fails
 try:
     conn = call_database()
     print("Successfully connected to the database!")
