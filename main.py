@@ -70,6 +70,7 @@ def home():
     return {"message": "welcome to happy kitchen"}
 
 
+
 @app.get("/menu", response_model=List[MenuResponse], tags=["Menu Management"], summary="Fetch entire food menu")
 def get_menu():
     """
@@ -85,6 +86,7 @@ def get_menu():
         return menu
     except mysql.connector.Error as dbrrr:
         raise HTTPException(status_code=500, detail=str(dbrrr))
+
 
 
 @app.post("/menu", tags=["Menu Management"], summary="Add a new dish to the menu")
@@ -105,6 +107,7 @@ def add_menu_item(item_name: str, item_price: int, category: str):
         raise HTTPException(status_code=500, detail=str(dbrrr))
 
 
+
 @app.put("/menu/{item_id}", tags=["Menu Management"], summary="Update an existing menu item")
 def update_menu_items(item_id: int, item_name: str, item_price: int, category: str):
     """
@@ -123,6 +126,7 @@ def update_menu_items(item_id: int, item_name: str, item_price: int, category: s
         raise HTTPException(status_code=500, detail=str(dbrrr))
 
 
+
 @app.delete("/menu/{item_id}", tags=["Menu Management"], summary="Remove a dish from the menu")
 def delete_menu_item(item_id: int):
     """
@@ -139,6 +143,7 @@ def delete_menu_item(item_id: int):
         return {"status": "deleted successfully"}
     except mysql.connector.Error as dbrrr:
         raise HTTPException(status_code=500, detail=str(dbrrr))
+
 
 
 @app.post("/register", response_model=RegisterResponse, tags=["Identity & Security"], summary="Register a new customer account")
@@ -160,6 +165,7 @@ def register_user(user: UserRegister = Body(...)):
         raise HTTPException(status_code=400, detail=str(dbrrr))
 
 
+
 @app.post("/login", response_model=LoginResponse, tags=["Identity & Security"], summary="Authenticate user and issue JWT token")
 def login_user(user_data: UserLogin = Body(...)):
     """
@@ -173,7 +179,6 @@ def login_user(user_data: UserLogin = Body(...)):
         user = cursor.fetchone()
         cursor.close()
         connection.close()
-        
         if not user or not pwd_context.verify(user_data.password, user['password']):
             raise HTTPException(status_code=400, detail="Invalid Credentials")
             
@@ -187,6 +192,7 @@ def login_user(user_data: UserLogin = Body(...)):
         if isinstance(e, HTTPException):
             raise e
         raise HTTPException(status_code=400, detail=str(e))
+
 
 
 @app.post("/orders", response_model=OrderResponse, tags=["Transactional Orders"], summary="Place a live food order")
@@ -221,7 +227,8 @@ def place_new_order(order_data: placeorder = Body(...)):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.get("/orders/{user_id}", tags=["Transactional Orders"], summary="Fetch historical paginated order history")
+
+@app.get("/orders/{user_id}", tags=["Order History"], summary="Fetch historical paginated order history")
 def get_order_history(user_id: int, page: int = 1, limit: int = 5, order_status: str = None):
     """
     Retrieves previous checkout records using mathematical offset pagination.
@@ -245,6 +252,7 @@ def get_order_history(user_id: int, page: int = 1, limit: int = 5, order_status:
         return {"page": page, "limit": limit, "data": history}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
 
 
 @app.get("/analytics/report", tags=["Business Intelligence Analytics"], summary="Get order counts grouped by status")
