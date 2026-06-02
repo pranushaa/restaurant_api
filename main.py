@@ -215,38 +215,54 @@ def login_user(user_data: UserLogin = Body(...)):
     finally:
         if connection and connection.is_connected():
             connection.close()
-
-
+            
+            
+            
+            
 @app.post("/orders", response_model=OrderResponse, tags=["Transactional Orders"], summary="Place a live food order")
 def place_new_order(order_data: placeorder = Body(...)):
     """
     Fetches base food price, calculates total bill, and logs the final order.
+    Utilizes ACID transaction processing to rollback changes on failure.
     """
     if order_data.quantity <= 0: 
         raise HTTPException(status_code=400, detail="Quantity must be > 0")
+    connection = None
+    cursor = None
     try:
         connection = call_database()
+        #START TRANSACTION (Turn off autocommit to control the transaction manually)
+        connection.autocommit = False
         cursor = connection.cursor(dictionary=True)
+        # Step A: Fetch food item price
         query = "SELECT item_price FROM menu WHERE item_id = %s"
         cursor.execute(query, (order_data.item_id,))
         menu = cursor.fetchone()
-        
         if not menu:
-            cursor.close()
-            connection.close()
+            # Item not found is an application logic error; safely exit without committing
             raise HTTPException(status_code=404, detail="Food item not found in menu")
-            
         item_price = menu['item_price']
         calculated_total = item_price * order_data.quantity
+        # Step B: Log the final order record
         insert_query = "INSERT INTO orders (user_id, item_id, quantity, total_price) VALUES (%s, %s, %s, %s)"
         cursor.execute(insert_query, (order_data.user_id, order_data.item_id, order_data.quantity, calculated_total))
+        # 2. COMMIT TRANSACTION (If everything succeeds, permanently save to the database)
         connection.commit()
-        cursor.close()
-        connection.close()
         return {"status": "Order Placed Successfully!", "total_bill": float(calculated_total)}
     except Exception as e:
-        if isinstance(e, HTTPException): raise e
-        raise HTTPException(status_code=500, detail=str(e))
+        # 3. ROLLBACK ON FAILURE (If ANY SQL or execution error happens, completely wipe the slate clean)
+        if connection and connection.is_connected():
+            connection.rollback()
+        if isinstance(e, HTTPException): 
+            raise e
+        raise HTTPException(status_code=500, detail=f"Transaction failed. Order rolled back: {str(e)}")
+    finally:
+        # Guaranteed cleanup to protect database pool connection allocations
+        if cursor:
+            cursor.close()
+        if connection and connection.is_connected():
+            connection.close()
+
 
 
 @app.get("/orders/{user_id}", tags=["Order History"], summary="Fetch historical paginated order history")
@@ -274,6 +290,7 @@ def get_order_history(user_id: int, page: int = 1, limit: int = 5, order_status:
      raise HTTPException(status_code=500, detail=str(e))
 
 
+
 @app.get("/analytics/report", tags=["Business Intelligence Analytics"], summary="Get order counts grouped by status")
 def get_business_report(status: str = None):
     """
@@ -296,6 +313,8 @@ def get_business_report(status: str = None):
         raise HTTPException(status_code=500, detail=str(dbrrr))
 
 
+
+
 @app.get("/analytics/basic-report", tags=["Business Intelligence Analytics"], summary="Get gross revenue metrics")
 def get_basic_financial_report():
     """
@@ -312,6 +331,8 @@ def get_basic_financial_report():
         return report
     except mysql.connector.Error as dbrrr:
         raise HTTPException(status_code=500, detail=str(dbrrr))
+
+
 
 
 @app.post("/healthier-alternative",response_model=HealthResponse,tags=["Smart Recommendations"],
