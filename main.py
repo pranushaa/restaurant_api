@@ -16,31 +16,17 @@ ALGORITHM = "HS256"
 
 
 def call_database():
-    host = os.getenv("DB_HOST")
-    if not host:
-        raise Exception("Environment variable DB_HOST is not set!")
-    
-    config = {
-        "host": host,
-        "user": os.getenv("DB_USER"),
-        "password": os.getenv("DB_PASS"),
-        "database": os.getenv("DB_NAME"),
-        "port": int(os.getenv("DB_PORT", 13080))
-    }
-    
-    if os.path.exists('ca.pem'):
-        config["ssl_ca"] = 'ca.pem'
-        config["ssl_verify_cert"] = True
-        
-    return mysql.connector.connect(**config)
+    ca_path = os.path.join(os.path.dirname(__file__), 'ca.pem')
 
-try:
-    conn = call_database()
-    print("Successfully connected to the database!")
-    conn.close()
-except Exception as e:
-    print(f"Error connecting to database: {e}")
-
+    return mysql.connector.connect(
+        host=os.getenv("DB_HOST"),
+        user=os.getenv("DB_USER"),
+        password=os.getenv("DB_PASS"),
+        database=os.getenv("DB_NAME"),
+        port=int(os.getenv("DB_PORT", 13080)),
+        ssl_ca=ca_path if os.path.exists(ca_path) else None,
+        ssl_verify_cert=True if os.path.exists(ca_path) else False
+    )
 
 
 # PYDANTIC REQUEST / RESPONSE MODELS
@@ -173,6 +159,7 @@ def register_user(user: UserRegister = Body(...)):
     """
     Hashes the user password and creates a new profile entry in the database.
     """
+    connection=None
     try:
         connection = call_database()
         cursor = connection.cursor()
@@ -185,6 +172,9 @@ def register_user(user: UserRegister = Body(...)):
         return {"status": "success", "message": "Registration successful"}
     except mysql.connector.Error as dbrrr:
         raise HTTPException(status_code=400, detail=str(dbrrr))
+    finally:
+        if connection and connection.is_connected():
+            connection.close()
 
 
 
@@ -194,6 +184,7 @@ def login_user(user_data: UserLogin = Body(...)):
     """
     Verifies user credentials and generates a secure, timed JSON Web Token.
     """
+    connection=None
     try:
         connection = call_database()
         cursor = connection.cursor(dictionary=True)
@@ -220,6 +211,9 @@ def login_user(user_data: UserLogin = Body(...)):
         
     except mysql.connector.Error as db_err:
         raise HTTPException(status_code=500, detail=f"Database verification error: {db_err.msg}")
+    finally:
+        if connection and connection.is_connected():
+            connection.close()
 
 
 
