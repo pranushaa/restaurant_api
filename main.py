@@ -35,6 +35,8 @@ class MenuResponse(BaseModel):
     item_name: str
     item_price: int
     category: str
+    calories: int
+    health_score: int
 
 class UserRegister(BaseModel):
     user_name: str
@@ -63,7 +65,18 @@ class OrderResponse(BaseModel):
     status: str
     total_bill: float
 
-# ENDPOINTS 
+class HealthRequest(BaseModel):
+    item_id: int
+
+class HealthResponse(BaseModel):
+    selected_item: str
+    healthier_alternative: str
+    selected_calories: int
+    alternative_calories: int
+    reason: str
+
+
+# ENDPOINTS
 
 @app.get("/", tags=["System Vitals"], summary="Root system check")
 def home():
@@ -71,7 +84,6 @@ def home():
     Returns a simple welcome message to check if server is live.
     """
     return {"message": "welcome to happy kitchen"}
-
 
 
 @app.get("/menu", response_model=List[MenuResponse], tags=["Menu Management"], summary="Fetch entire food menu")
@@ -89,8 +101,6 @@ def get_menu():
         return menu
     except mysql.connector.Error as dbrrr:
         raise HTTPException(status_code=500, detail=str(dbrrr))
-
-
 
 
 @app.post("/menu", tags=["Menu Management"], summary="Add a new dish to the menu")
@@ -112,8 +122,6 @@ def add_menu_item(item_name: str, item_price: int, category: str):
         raise HTTPException(status_code=500, detail=str(dbrrr))
 
 
-
-
 @app.put("/menu/{item_id}", tags=["Menu Management"], summary="Update an existing menu item")
 def update_menu_items(item_id: int, item_name: str, item_price: int, category: str):
     """
@@ -132,8 +140,6 @@ def update_menu_items(item_id: int, item_name: str, item_price: int, category: s
         raise HTTPException(status_code=500, detail=str(dbrrr))
 
 
-
-
 @app.delete("/menu/{item_id}", tags=["Menu Management"], summary="Remove a dish from the menu")
 def delete_menu_item(item_id: int):
     """
@@ -150,8 +156,6 @@ def delete_menu_item(item_id: int):
         return {"status": "deleted successfully"}
     except mysql.connector.Error as dbrrr:
         raise HTTPException(status_code=500, detail=str(dbrrr))
-
-
 
 
 @app.post("/register", response_model=RegisterResponse, tags=["Identity & Security"], summary="Register a new customer account")
@@ -175,8 +179,6 @@ def register_user(user: UserRegister = Body(...)):
     finally:
         if connection and connection.is_connected():
             connection.close()
-
-
 
 
 @app.post("/login", response_model=LoginResponse, tags=["Identity & Security"], summary="Authenticate user and issue JWT token")
@@ -215,8 +217,6 @@ def login_user(user_data: UserLogin = Body(...)):
             connection.close()
 
 
-
-
 @app.post("/orders", response_model=OrderResponse, tags=["Transactional Orders"], summary="Place a live food order")
 def place_new_order(order_data: placeorder = Body(...)):
     """
@@ -247,8 +247,6 @@ def place_new_order(order_data: placeorder = Body(...)):
     except Exception as e:
         if isinstance(e, HTTPException): raise e
         raise HTTPException(status_code=500, detail=str(e))
-
-
 
 
 @app.get("/orders/{user_id}", tags=["Order History"], summary="Fetch historical paginated order history")
@@ -298,8 +296,6 @@ def get_business_report(status: str = None):
         raise HTTPException(status_code=500, detail=str(dbrrr))
 
 
-
-
 @app.get("/analytics/basic-report", tags=["Business Intelligence Analytics"], summary="Get gross revenue metrics")
 def get_basic_financial_report():
     """
@@ -316,3 +312,51 @@ def get_basic_financial_report():
         return report
     except mysql.connector.Error as dbrrr:
         raise HTTPException(status_code=500, detail=str(dbrrr))
+
+
+@app.post("/healthier-alternative",response_model=HealthResponse,tags=["Smart Recommendations"],
+    summary="Suggest a healthier alternative food item")
+def healthier_alternative(data: HealthRequest = Body(...)):
+    """
+    providing option to chocie healthier version for calorie dense food
+    """
+    try:
+        connection = call_database()
+        cursor = connection.cursor(dictionary=True)
+        cursor.execute(
+            """
+            SELECT *FROM menu WHERE item_id = %s""",
+            (data.item_id,)
+        )
+        selected_item = cursor.fetchone()
+        if not selected_item:
+            raise HTTPException(status_code=404,detail="Menu item not found")
+        cursor.execute("""SELECT * FROM menu WHERE category = %s AND health_score > %s
+            ORDER BY health_score DESC, calories ASC
+            LIMIT 1
+            """,
+            (
+                selected_item["category"],
+                selected_item["health_score"]
+            )
+        )
+        alternative = cursor.fetchone()
+        cursor.close()
+        connection.close()
+        if not alternative:
+            return {
+                "selected_item": selected_item["item_name"],
+                "healthier_alternative": selected_item["item_name"],
+                "selected_calories": selected_item["calories"],
+                "alternative_calories": selected_item["calories"],
+                "reason": "No healthier alternative available"
+            }
+        return {
+            "selected_item": selected_item["item_name"],
+            "healthier_alternative": alternative["item_name"],
+            "selected_calories": selected_item["calories"],
+            "alternative_calories": alternative["calories"],
+            "reason": "Higher health score and lower calories"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500,detail=str(e))
