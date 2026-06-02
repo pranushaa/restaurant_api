@@ -277,21 +277,10 @@ def get_order_history(user_id: int, page: int = 1, limit: int = 5, order_status:
 
 
 @app.get("/analytics/report", tags=["Business Intelligence Analytics"], summary="Get order counts grouped by status")
-def get_business_report(status: str = None, authorization: str = Header(None)):
-    print("AUTH HEADER =", authorization)
+def get_business_report(status: str = None):
     """
     Uses database grouping options to count orders sorted by fulfillment status.
     """
-    if not authorization or not authorization.startswith("Bearer "): 
-        raise HTTPException(status_code=401, detail="Unauthorized")
-    token = authorization.split(" ")[1]
-
-    try:
-     jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-    except jwt.ExpiredSignatureError:
-     raise HTTPException(status_code=401, detail="Token expired")
-    except jwt.InvalidTokenError:
-     raise HTTPException(status_code=401, detail="Invalid token")
     try:
         connection = call_database()
         cursor = connection.cursor(dictionary=True)
@@ -312,21 +301,10 @@ def get_business_report(status: str = None, authorization: str = Header(None)):
 
 
 @app.get("/analytics/basic-report", tags=["Business Intelligence Analytics"], summary="Get gross revenue metrics")
-def get_basic_financial_report(authorization: str = Header(None)):
-    print("AUTH HEADER =", authorization)
+def get_basic_financial_report():
     """
     Runs native SQL aggregations to calculate total revenue metrics and customer volumes.
     """
-    if not authorization or not authorization.startswith("Bearer "): 
-        raise HTTPException(status_code=401, detail="Unauthorized")
-    token = authorization.split(" ")[1]
-
-    try:
-      jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-    except jwt.ExpiredSignatureError:
-     raise HTTPException(status_code=401, detail="Token expired")
-    except jwt.InvalidTokenError:
-     raise HTTPException(status_code=401, detail="Invalid token")
     try:
         connection = call_database()
         cursor = connection.cursor(dictionary=True)
