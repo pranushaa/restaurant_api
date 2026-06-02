@@ -16,18 +16,23 @@ ALGORITHM = "HS256"
 
 
 def call_database():
-        host=os.getenv("DB_HOST")
-        if not host:
-            raise Exception("Environment variable DB_HOST is not set!")
-        return mysql.connector.connect(
-          host=host,
-          user=os.getenv("DB_USER"),
-          password=os.getenv("DB_PASS"),
-          database=os.getenv("DB_NAME"),
-          port=int(os.getenv("DB_PORT", 13080)),
-          ssl_ca='ca.pem',
-          ssl_verify_cert=True
-    )
+    host = os.getenv("DB_HOST")
+    if not host:
+        raise Exception("Environment variable DB_HOST is not set!")
+    
+    config = {
+        "host": host,
+        "user": os.getenv("DB_USER"),
+        "password": os.getenv("DB_PASS"),
+        "database": os.getenv("DB_NAME"),
+        "port": int(os.getenv("DB_PORT", 13080))
+    }
+    
+    if os.path.exists('ca.pem'):
+        config["ssl_ca"] = 'ca.pem'
+        config["ssl_verify_cert"] = True
+        
+    return mysql.connector.connect(**config)
 
 try:
     conn = call_database()
@@ -35,6 +40,7 @@ try:
     conn.close()
 except Exception as e:
     print(f"Error connecting to database: {e}")
+
 
 
 # PYDANTIC REQUEST / RESPONSE MODELS
