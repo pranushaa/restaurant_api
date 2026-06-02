@@ -161,11 +161,11 @@ def register_user(user: UserRegister = Body(...)):
     """
     connection=None
     try:
+        hashed_password = pwd_context.hash(user.password)
         connection = call_database()
         cursor = connection.cursor()
-        hashed_password = pwd_context.hash(user.password[:72])
         query = "INSERT INTO userinformation (user_name, email, password) VALUES (%s, %s, %s)"
-        cursor.execute(query, (user.user_name, user.email, hashed_password))
+        cursor.execute(query, (user.user_name, user.email,hashed_password))
         connection.commit()
         cursor.close()
         connection.close()
@@ -195,11 +195,10 @@ def login_user(user_data: UserLogin = Body(...)):
         connection.close()
         if user is None:
             raise HTTPException(status_code=400, detail="Invalid email or password")
-        
-        password_matches = pwd_context.verify(user_data.password[:72], user['password'])
+        password_matches = pwd_context.verify(user_data.password,user["password"])
+            
         if not password_matches:
             raise HTTPException(status_code=400, detail="Invalid email or password")
-            
         expire = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(minutes=30)
         token_payload = {
             "email": user['email'],
@@ -273,8 +272,8 @@ def get_order_history(user_id: int, page: int = 1, limit: int = 5, order_status:
         connection.close()
         return {"page": page, "limit": limit, "data": history}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
+     print("ORDER ERROR:", str(e))
+     raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/analytics/report", tags=["Business Intelligence Analytics"], summary="Get order counts grouped by status")
@@ -284,6 +283,14 @@ def get_business_report(status: str = None, authorization: str = Header(None)):
     """
     if not authorization or not authorization.startswith("Bearer "): 
         raise HTTPException(status_code=401, detail="Unauthorized")
+    token = authorization.split(" ")[1]
+
+    try:
+     jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+    except jwt.ExpiredSignatureError:
+     raise HTTPException(status_code=401, detail="Token expired")
+    except jwt.InvalidTokenError:
+     raise HTTPException(status_code=401, detail="Invalid token")
     try:
         connection = call_database()
         cursor = connection.cursor(dictionary=True)
@@ -310,6 +317,14 @@ def get_basic_financial_report(authorization: str = Header(None)):
     """
     if not authorization or not authorization.startswith("Bearer "): 
         raise HTTPException(status_code=401, detail="Unauthorized")
+    token = authorization.split(" ")[1]
+
+    try:
+      jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+    except jwt.ExpiredSignatureError:
+     raise HTTPException(status_code=401, detail="Token expired")
+    except jwt.InvalidTokenError:
+     raise HTTPException(status_code=401, detail="Invalid token")
     try:
         connection = call_database()
         cursor = connection.cursor(dictionary=True)
