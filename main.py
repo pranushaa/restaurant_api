@@ -278,6 +278,7 @@ def get_order_history(user_id: int, page: int = 1, limit: int = 5, order_status:
 
 @app.get("/analytics/report", tags=["Business Intelligence Analytics"], summary="Get order counts grouped by status")
 def get_business_report(status: str = None, authorization: str = Header(None)):
+    print("AUTH HEADER =", authorization)
     """
     Uses database grouping options to count orders sorted by fulfillment status.
     """
@@ -312,6 +313,7 @@ def get_business_report(status: str = None, authorization: str = Header(None)):
 
 @app.get("/analytics/basic-report", tags=["Business Intelligence Analytics"], summary="Get gross revenue metrics")
 def get_basic_financial_report(authorization: str = Header(None)):
+    print("AUTH HEADER =", authorization)
     """
     Runs native SQL aggregations to calculate total revenue metrics and customer volumes.
     """
