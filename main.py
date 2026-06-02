@@ -16,13 +16,17 @@ ALGORITHM = "HS256"
 
 
 def call_database():
-    return mysql.connector.connect(
-        host=os.getenv("DB_HOST"),
-        user=os.getenv("DB_USER"),
-        password=os.getenv("DB_PASS"),
-        database=os.getenv("DB_NAME"),
-        port=int(os.getenv("DB_PORT", 13080)),
-        ssl_ca='ca.pem'
+        host=os.getenv("DB_HOST")
+        if not host:
+            raise Exception("Environment variable DB_HOST is not set!")
+        return mysql.connector.connect(
+          host=host,
+          user=os.getenv("DB_USER"),
+          password=os.getenv("DB_PASS"),
+          database=os.getenv("DB_NAME"),
+          port=int(os.getenv("DB_PORT", 13080)),
+          ssl_ca='ca.pem',
+          ssl_verify_cert=True
     )
 
 try:
@@ -86,7 +90,7 @@ def get_menu():
     try:
         connection = call_database()
         cursor = connection.cursor(dictionary=True)
-        cursor.execute("SELECT * FROM eleven.menu")
+        cursor.execute("SELECT * FROM menu")
         menu = cursor.fetchall()
         cursor.close()
         connection.close()
@@ -106,7 +110,7 @@ def add_menu_item(item_name: str, item_price: int, category: str):
     try:
         connection = call_database()
         cursor = connection.cursor()
-        query = "INSERT INTO eleven.menu (item_name, item_price, category) VALUES (%s, %s, %s)"
+        query = "INSERT INTO menu (item_name, item_price, category) VALUES (%s, %s, %s)"
         cursor.execute(query, (item_name, item_price, category))
         connection.commit()
         cursor.close()
@@ -126,7 +130,7 @@ def update_menu_items(item_id: int, item_name: str, item_price: int, category: s
     try:
         connection = call_database()
         cursor = connection.cursor()
-        query = "UPDATE eleven.menu SET item_name=%s, item_price=%s, category=%s WHERE item_id=%s"
+        query = "UPDATE menu SET item_name=%s, item_price=%s, category=%s WHERE item_id=%s"
         cursor.execute(query, (item_name, item_price, category, item_id))
         connection.commit()
         cursor.close()
@@ -146,7 +150,7 @@ def delete_menu_item(item_id: int):
     try:
         connection = call_database()
         cursor = connection.cursor()
-        query = "DELETE FROM eleven.menu WHERE item_id=%s"
+        query = "DELETE FROM menu WHERE item_id=%s"
         cursor.execute(query, (item_id,))
         connection.commit()
         cursor.close()
@@ -166,8 +170,8 @@ def register_user(user: UserRegister = Body(...)):
     try:
         connection = call_database()
         cursor = connection.cursor()
-        hashed_password = pwd_context.hash(user.password)
-        query = "INSERT INTO eleven.userinformation (user_name, email, password) VALUES (%s, %s, %s)"
+        hashed_password = pwd_context.hash(user.password[:72])
+        query = "INSERT INTO userinformation (user_name, email, password) VALUES (%s, %s, %s)"
         cursor.execute(query, (user.user_name, user.email, hashed_password))
         connection.commit()
         cursor.close()
@@ -187,7 +191,7 @@ def login_user(user_data: UserLogin = Body(...)):
     try:
         connection = call_database()
         cursor = connection.cursor(dictionary=True)
-        query = "SELECT * FROM eleven.userinformation WHERE email = %s"
+        query = "SELECT * FROM userinformation WHERE email = %s"
         cursor.execute(query, (user_data.email,))
         user = cursor.fetchone()
         cursor.close()
@@ -195,7 +199,7 @@ def login_user(user_data: UserLogin = Body(...)):
         if user is None:
             raise HTTPException(status_code=400, detail="Invalid email or password")
         
-        password_matches = pwd_context.verify(user_data.password, user['password'])
+        password_matches = pwd_context.verify(user_data.password[:72], user['password'])
         if not password_matches:
             raise HTTPException(status_code=400, detail="Invalid email or password")
             
@@ -224,7 +228,7 @@ def place_new_order(order_data: placeorder = Body(...)):
     try:
         connection = call_database()
         cursor = connection.cursor(dictionary=True)
-        query = "SELECT item_price FROM eleven.menu WHERE item_id = %s"
+        query = "SELECT item_price FROM menu WHERE item_id = %s"
         cursor.execute(query, (order_data.item_id,))
         menu = cursor.fetchone()
         
@@ -235,7 +239,7 @@ def place_new_order(order_data: placeorder = Body(...)):
             
         item_price = menu['item_price']
         calculated_total = item_price * order_data.quantity
-        insert_query = "INSERT INTO eleven.orders (user_id, item_id, quantity, total_price) VALUES (%s, %s, %s, %s)"
+        insert_query = "INSERT INTO orders (user_id, item_id, quantity, total_price) VALUES (%s, %s, %s, %s)"
         cursor.execute(insert_query, (order_data.user_id, order_data.item_id, order_data.quantity, calculated_total))
         connection.commit()
         cursor.close()
@@ -258,10 +262,10 @@ def get_order_history(user_id: int, page: int = 1, limit: int = 5, order_status:
         cursor = connection.cursor(dictionary=True)
         offset = (page - 1) * limit
         if order_status:
-            query = "SELECT * FROM eleven.orders WHERE user_id = %s AND order_status = %s LIMIT %s OFFSET %s"
+            query = "SELECT * FROM orders WHERE user_id = %s AND order_status = %s LIMIT %s OFFSET %s"
             params = (user_id, order_status, limit, offset)
         else:
-            query = "SELECT * FROM eleven.orders WHERE user_id = %s LIMIT %s OFFSET %s"
+            query = "SELECT * FROM orders WHERE user_id = %s LIMIT %s OFFSET %s"
             params = (user_id, limit, offset)
         cursor.execute(query, params)
         history = cursor.fetchall()
@@ -284,10 +288,10 @@ def get_business_report(status: str = None, authorization: str = Header(None)):
         connection = call_database()
         cursor = connection.cursor(dictionary=True)
         if status:
-            query = "SELECT order_status, COUNT(*) as count FROM eleven.orders WHERE order_status = %s GROUP BY order_status"
+            query = "SELECT order_status, COUNT(*) as count FROM orders WHERE order_status = %s GROUP BY order_status"
             cursor.execute(query, (status,))
         else:
-            query = "SELECT order_status, COUNT(*) as count FROM eleven.orders GROUP BY order_status"
+            query = "SELECT order_status, COUNT(*) as count FROM orders GROUP BY order_status"
             cursor.execute(query)
         report = cursor.fetchall()
         cursor.close()
@@ -309,7 +313,7 @@ def get_basic_financial_report(authorization: str = Header(None)):
     try:
         connection = call_database()
         cursor = connection.cursor(dictionary=True)
-        query = "SELECT SUM(total_price) as gross_revenue, COUNT(*) as total_orders, COUNT(DISTINCT user_id) as unique_customers FROM eleven.orders"
+        query = "SELECT SUM(total_price) as gross_revenue, COUNT(*) as total_orders, COUNT(DISTINCT user_id) as unique_customers FROM orders"
         cursor.execute(query)
         report = cursor.fetchone()
         cursor.close()
