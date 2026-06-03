@@ -4,9 +4,10 @@ from fastapi import HTTPException
 from passlib.context import CryptContext
 from app.repositories import user_repo
 import mysql.connector
+import os
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-SECRET_KEY = "SUPER_SECRET_KEY"
+SECRET_KEY = os.getenv("SECRET_KEY")
 ALGORITHM = "HS256"
 
 def register_user(user_name, email, password):
