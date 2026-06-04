@@ -51,6 +51,16 @@ HTTP Request
 MySQL (Aiven) + Redis
 ```
 
+RESTAURANT_API/
+├── main.py                   # registers all routers
+├── database.py               # MySQL connection with SSL
+├── app/
+│   ├── models.py             # Pydantic request/response models
+│   ├── cache.py              # Redis client
+│   ├── routes/               # endpoints — menu, auth, orders, analytics, health
+│   ├── services/             # business logic for each feature
+│   └── repositories/         # all raw SQL queries
+
 ```
 RESTAURANT_API/
 ├── main.py                   # registers all routers
@@ -62,6 +72,8 @@ RESTAURANT_API/
 │   ├── services/             # business logic for each feature
 │   └── repositories/         # all raw SQL queries
 ```
+
+
 RESTAURANT_API/
 ├── main.py
 ├── database.py
@@ -85,6 +97,8 @@ RESTAURANT_API/
 │       ├── user_repo.py
 │       ├── order_repo.py
 │       └── analytics_repo.py
+
+
 ---
 
 ## 🗃️ Database Design
