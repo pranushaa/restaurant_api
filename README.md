@@ -51,53 +51,31 @@ HTTP Request
 MySQL (Aiven) + Redis
 ```
 
-RESTAURANT_API/
-├── main.py                   # registers all routers
-├── database.py               # MySQL connection with SSL
-├── app/
-│   ├── models.py             # Pydantic request/response models
-│   ├── cache.py              # Redis client
-│   ├── routes/               # endpoints — menu, auth, orders, analytics, health
-│   ├── services/             # business logic for each feature
-│   └── repositories/         # all raw SQL queries
-
 ```
 RESTAURANT_API/
-├── main.py                   # registers all routers
-├── database.py               # MySQL connection with SSL
+├── main.py                        # registers all routers
+├── database.py                    # MySQL connection with SSL
 ├── app/
-│   ├── models.py             # Pydantic request/response models
-│   ├── cache.py              # Redis client
-│   ├── routes/               # endpoints — menu, auth, orders, analytics, health
-│   ├── services/             # business logic for each feature
-│   └── repositories/         # all raw SQL queries
-```
-
-
-RESTAURANT_API/
-├── main.py
-├── database.py
-├── app/
-│   ├── models.py
-│   ├── cache.py
-│   ├── routes/
+│   ├── models.py                  # Pydantic request/response models
+│   ├── cache.py                   # Redis client
+│   ├── routes/                    # HTTP endpoints
 │   │   ├── menu.py
 │   │   ├── auth.py
 │   │   ├── orders.py
 │   │   ├── analytics.py
 │   │   └── health.py
-│   ├── services/
+│   ├── services/                  # Business logic
 │   │   ├── menu_services.py
 │   │   ├── auth_service.py
 │   │   ├── order_service.py
 │   │   ├── analytics_service.py
 │   │   └── healyh_service.py
-│   └── repositories/
+│   └── repositories/              # All SQL queries
 │       ├── menu_repo.py
 │       ├── user_repo.py
 │       ├── order_repo.py
 │       └── analytics_repo.py
-
+```
 
 ---
 
@@ -147,7 +125,6 @@ Indexes added on columns used in WHERE clauses to avoid full table scans.
 
 ---
 
-
 ## 📌 API Endpoints
 
 ### System
@@ -188,8 +165,6 @@ Indexes added on columns used in WHERE clauses to avoid full table scans.
 
 ---
 
-
-
 ## 🧠 Technical Decisions & How They Work
 
 ### Redis Caching
@@ -215,7 +190,7 @@ except:
 ```
 
 ### Race Condition Prevention
-Under concurrent load, two requests hitting the order endpoint at the same time could both read the same stock state and both proceed. Transaction isolation at the database level prevents this.
+Under concurrent load, two requests hitting the order endpoint at the same time could both read the same data and both proceed. Transaction isolation at the database level prevents this.
 
 ### Healthier Alternative Logic
 Queries items in the same category with a strictly higher health score, sorted by health score descending and calories ascending — returns the single best option.
@@ -234,6 +209,14 @@ Order history uses offset-based pagination to avoid loading all records at once.
 GET /orders/1?page=2&limit=5
 offset = (2-1) * 5 = 5  →  fetches records 6 to 10
 ```
+
+### Database Indexing Strategy
+Indexes added on columns used frequently in WHERE clauses:
+- `orders.user_id` — speeds up order history queries
+- `orders.order_status` — speeds up analytics report grouping
+- `menu.category` — speeds up healthier alternative search
+
+Result: Avoids full table scans on large datasets.
 
 ### JWT Authentication
 Passwords hashed with bcrypt on register. On login, hash is verified and a signed JWT token is returned with a 30-minute expiry.
@@ -282,17 +265,7 @@ POST /healthier-alternative
   }
 ```
 
-### Database Indexing Strategy
-Indexes added on columns used frequently in WHERE clauses 
-and JOIN conditions:
-- `orders.user_id` — speeds up order history queries
-- `orders.order_status` — speeds up analytics report grouping  
-- `menu.category` — speeds up healthier alternative search
-
-Result: Avoids full table scans on large datasets.
-
 ---
-
 
 ## ⚙️ Local Setup
 
@@ -321,7 +294,6 @@ http://localhost:8000/docs
 
 ---
 
-
 ## 📦 Dependencies
 
 ```
@@ -336,27 +308,23 @@ python-dotenv
 
 ---
 
+## 🎯 Backend Concepts Demonstrated
 
-# 🎯 Backend Concepts Demonstrated
-
-* REST API Design
-* Authentication & Authorization
-* Password Hashing
-* JWT Token Management
-* CRUD Operations
-* Pagination
-* SQL Aggregations
-* Database Indexing
-* Transaction Management
-* ACID Properties
-* Cloud Deployment
-* API Documentation
-* Data Validation
-* Error Handling
+- REST API Design
+- JWT Authentication
+- Password Hashing (bcrypt)
+- Redis Caching with Cache Invalidation
+- ACID Transactions with Rollback
+- Race Condition Prevention
+- Database Indexing
+- Pagination
+- SQL Aggregations
+- Cloud Deployment
+- Environment Variable Management
+- Parameterized Queries (SQL Injection Prevention)
+- Clean Architecture (Routes → Services → Repository)
 
 ---
-
-
 
 ## 🌐 Deployment
 
@@ -367,12 +335,9 @@ python-dotenv
 
 ---
 
-
 ## 👤 Author
 
 **Pranusha Velugubantla**  
 📧 pranushav69@gmail.com  
-🔗 [LinkedIn](https://www.linkedin.com/in/pranusha-velugubantla/) | [GitHub](https://github.com/pranushaa)
-
-Backend Developer | Python | FastAPI | MySQL | REST APIs
-
+🔗 [LinkedIn](https://www.linkedin.com/in/pranusha-velugubantla/) 
+    [GitHub](https://github.com/pranushaa)
