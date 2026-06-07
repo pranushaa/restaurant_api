@@ -1,7 +1,14 @@
 from fastapi import FastAPI
+from fastapi.security import HTTPBearer
 from app.routes import menu, auth, orders, analytics, health
 
-app = FastAPI()
+security = HTTPBearer()
+
+app = FastAPI(
+    title="Happy Kitchen API",
+    description="Restaurant Management REST API",
+    version="1.0.0"
+)
 
 app.include_router(menu.router)
 app.include_router(auth.router)

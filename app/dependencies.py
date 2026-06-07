@@ -1,13 +1,17 @@
-import jwt
-from fastapi import HTTPException, Header
 import os
+import jwt
+from fastapi import HTTPException
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi import Depends
 
 SECRET_KEY = os.getenv("SECRET_KEY")
 ALGORITHM = "HS256"
 
-def verify_token(authorization: str = Header(...)):
+security = HTTPBearer()
+
+def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
     try:
-        token = authorization.split(" ")[1]
+        token = credentials.credentials
         jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
     except:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
