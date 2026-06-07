@@ -4,10 +4,12 @@ from app.services import auth_service
 
 router = APIRouter(tags=["Identity & Security"])
 
-@router.post("/register", response_model=RegisterResponse)
+@router.post("/register", response_model=RegisterResponse, summary="Register a new customer account")
 def register_user(user: UserRegister = Body(...)):
+    """Register new user. Password is hashed with bcrypt before saving."""
     return auth_service.register_user(user.user_name, user.email, user.password)
 
-@router.post("/login", response_model=LoginResponse)
+@router.post("/login", response_model=LoginResponse, summary="Login and receive JWT token")
 def login_user(user_data: UserLogin = Body(...)):
+    """Authenticate user. Returns JWT token valid for 30 minutes."""
     return auth_service.login_user(user_data.email, user_data.password)

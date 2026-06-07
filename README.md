@@ -220,6 +220,14 @@ Result: Avoids full table scans on large datasets.
 
 ### JWT Authentication
 Passwords hashed with bcrypt on register. On login, hash is verified and a signed JWT token is returned with a 30-minute expiry.
+### JWT Protected Route Authorization
+POST /orders requires a valid JWT token.
+
+Pass token in request header:
+Authorization: Bearer <your_token>
+
+Get token by calling POST /login first.
+Token expires in 30 minutes.
 
 ---
 
@@ -232,6 +240,17 @@ Passwords hashed with bcrypt on register. On login, hash is verified and a signe
 - Parameterized queries throughout — no SQL injection possible
 
 ---
+
+### Logging
+Structured logging added to order processing using Python's 
+built-in logging module.
+
+- INFO  → successful order placed, history fetched
+- WARNING → invalid input, item not found  
+- ERROR → transaction failures, unexpected errors
+
+Logs include user_id and item details for easy debugging.
+
 
 ## 📊 Sample Requests
 
