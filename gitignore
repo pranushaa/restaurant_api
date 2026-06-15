@@ -1,0 +1,8 @@
+.env
+ca.pem
+__pycache__/
+*.pyc
+*.pyo
+*.db
+restaurant.db
+.dockerignore
