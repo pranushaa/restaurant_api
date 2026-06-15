@@ -31,6 +31,12 @@ A REST API that handles the backend of a restaurant:
 
 ---
 
+## 🛠️ Tech Stack
+* **Backend:** Python
+* **Database:** MySQL
+* **DevOps:** Docker (Containerization & local development)
+
+
 ## 🏗️ Architecture
 
 I separated the code into three clear layers so each part has one job:
@@ -69,7 +75,7 @@ RESTAURANT_API/
 │   │   ├── auth_service.py
 │   │   ├── order_service.py
 │   │   ├── analytics_service.py
-│   │   └── healyh_service.py
+│   │   └── health_service.py
 │   └── repositories/              # All SQL queries
 │       ├── menu_repo.py
 │       ├── user_repo.py
@@ -78,6 +84,8 @@ RESTAURANT_API/
 ```
 
 ---
+
+
 
 ## 🗃️ Database Design
 
@@ -112,6 +120,7 @@ RESTAURANT_API/
 - One user → many orders (1:N)
 - One menu item → many orders (1:N)
 
+
 ### Indexes Applied
 
 | Table | Column | Reason |
@@ -124,6 +133,8 @@ RESTAURANT_API/
 Indexes added on columns used in WHERE clauses to avoid full table scans.
 
 ---
+
+
 
 ## 📌 API Endpoints
 
@@ -164,6 +175,8 @@ Indexes added on columns used in WHERE clauses to avoid full table scans.
 | POST | `/healthier-alternative` | Suggest healthier option in same category |
 
 ---
+
+
 
 ## 🧠 Technical Decisions & How They Work
 
@@ -231,6 +244,7 @@ Token expires in 30 minutes.
 
 ---
 
+
 ## 🔒 Security
 
 - Passwords hashed with bcrypt — plain text never stored
@@ -286,6 +300,7 @@ POST /healthier-alternative
 
 ---
 
+
 ## ⚙️ Local Setup
 
 ```bash
@@ -313,6 +328,7 @@ http://localhost:8000/docs
 
 ---
 
+
 ## 📦 Dependencies
 
 ```
@@ -337,22 +353,31 @@ python-dotenv
 - Race Condition Prevention
 - Database Indexing
 - Pagination
+- Proper logging
 - SQL Aggregations
 - Cloud Deployment
 - Environment Variable Management
 - Parameterized Queries (SQL Injection Prevention)
 - Clean Architecture (Routes → Services → Repository)
+- Docker 
 
 ---
+
 
 ## 🌐 Deployment
 
-- Hosted on **Render** — auto-deploys on every push to main
-- Database on **Aiven MySQL** — cloud-hosted with SSL enforced
+### Local Development with Docker
+```bash
+docker-compose up --build
+```
+Starts API + Redis together in containers.
+Test at: http://localhost:8000/docs
+
+### Production Deployment
+- Hosted on **Render** — auto-deploys on every git push
+- Database on **Aiven MySQL** — cloud-hosted with SSL
 - Environment variables set in Render dashboard
 - Live docs: https://restaurant-api-xj8w.onrender.com/docs
-
----
 
 ## 👤 Author
 
