@@ -7,6 +7,7 @@
 [![MySQL](https://img.shields.io/badge/MySQL-Aiven_Cloud-orange?style=flat-square&logo=mysql)](https://aiven.io)
 [![Redis](https://img.shields.io/badge/Redis-Caching-red?style=flat-square&logo=redis)](https://redis.io)
 [![Render](https://img.shields.io/badge/Deployed-Render-purple?style=flat-square)](https://render.com)
+[![Docker](https://img.shields.io/badge/Docker-Containerization-blue?style=flat-square&logo=docker)](https://www.docker.com)
 
 **Live API →** https://restaurant-api-xj8w.onrender.com/docs  
 **GitHub →** https://github.com/pranushaa/restaurant_api
@@ -233,6 +234,7 @@ Result: Avoids full table scans on large datasets.
 
 ### JWT Authentication
 Passwords hashed with bcrypt on register. On login, hash is verified and a signed JWT token is returned with a 30-minute expiry.
+
 ### JWT Protected Route Authorization
 POST /orders requires a valid JWT token.
 
