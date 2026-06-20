@@ -246,6 +246,14 @@ Token expires in 30 minutes.
 
 ---
 
+### Rate Limiting
+Brute-force protection on sensitive endpoints using slowapi.
+
+- `POST /login` → limited to 5 requests/minute per IP
+- `GET /` → limited to 100 requests/minute per IP
+
+Exceeding the limit returns `429 Too Many Requests`. Rate limiting is automatically disabled during automated tests (via `conftest.py`) so the test suite isn't blocked by its own requests.
+
 
 ## 🔒 Security
 
@@ -302,6 +310,18 @@ POST /healthier-alternative
 
 ---
 
+## 🧪 Testing
+
+Automated tests using pytest and FastAPI's TestClient cover core functionality:
+
+- Server health check (`/`)
+- Menu retrieval (`/menu`)
+- Invalid login rejection (`/login`)
+
+Run tests:
+```bash
+python -m pytest -v
+
 
 ## ⚙️ Local Setup
 
@@ -341,6 +361,8 @@ redis
 passlib[bcrypt]
 PyJWT
 python-dotenv
+slowapi
+pytest
 ```
 
 ---
@@ -362,6 +384,8 @@ python-dotenv
 - Parameterized Queries (SQL Injection Prevention)
 - Clean Architecture (Routes → Services → Repository)
 - Docker 
+- Rate Limiting (Brute-force Protection)
+- Automated Testing (pytest)
 
 ---
 
