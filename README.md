@@ -10,6 +10,8 @@
 [![Docker](https://img.shields.io/badge/Docker-Containerization-blue?style=flat-square&logo=docker)](https://www.docker.com)
 [![CI](https://github.com/pranushaa/restaurant_api/actions/workflows/tests.yml/badge.svg)
 ](https://github.com/pranushaa/restaurant_api/actions)
+![Rate Limiting](https://img.shields.io/badge/Rate--Limiting-Slowapi-orange)
+![CI/CD](https://img.shields.io/badge/CI%2FCD-GitHub%20Actions-blue?logo=github-actions&logoColor=white)
 
 **Live API →** https://restaurant-api-xj8w.onrender.com/docs  
 **GitHub →** https://github.com/pranushaa/restaurant_api
