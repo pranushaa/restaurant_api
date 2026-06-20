@@ -16,7 +16,7 @@ def get_menu():
         menu = menu_repo.db_get_menu()
         if menu:
             try:
-                redis_client.setex(CACHE_KEY, 600, json.dumps(menu))
+                redis_client.set(CACHE_KEY, json.dumps(menu),ex=600)
             except Exception:
                 pass
         return menu
