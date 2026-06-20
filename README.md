@@ -8,6 +8,8 @@
 [![Redis](https://img.shields.io/badge/Redis-Caching-red?style=flat-square&logo=redis)](https://redis.io)
 [![Render](https://img.shields.io/badge/Deployed-Render-purple?style=flat-square)](https://render.com)
 [![Docker](https://img.shields.io/badge/Docker-Containerization-blue?style=flat-square&logo=docker)](https://www.docker.com)
+[![CI](https://github.com/pranushaa/restaurant_api/actions/workflows/tests.yml/badge.svg)
+](https://github.com/pranushaa/restaurant_api/actions)
 
 **Live API →** https://restaurant-api-xj8w.onrender.com/docs  
 **GitHub →** https://github.com/pranushaa/restaurant_api
@@ -321,6 +323,12 @@ Automated tests using pytest and FastAPI's TestClient cover core functionality:
 Run tests:
 ```bash
 python -m pytest -v
+
+
+## ⚙️ CI/CD
+
+- **CI:** GitHub Actions runs the full pytest suite on every push to `main`, including a live Redis service container. A broken build is caught before deployment.
+- **CD:** Render auto-deploys to production on every push to `main`.
 
 
 ## ⚙️ Local Setup
