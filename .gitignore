@@ -6,3 +6,4 @@ __pycache__/
 *.db
 restaurant.db
 .dockerignore
+k8s/01-secret.yaml
