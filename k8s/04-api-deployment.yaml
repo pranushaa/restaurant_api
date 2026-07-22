@@ -4,7 +4,7 @@ metadata:
   name: happy-kitchen-api
   namespace: happy-kitchen
 spec:
-  replicas: 2   # 2 copies = if one crashes or is busy, the other still serves traffic
+  replicas: 2   
   selector:
     matchLabels:
       app: happy-kitchen-api
@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: api
-          image: yourusername/happy-kitchen-api:1.0   # <-- change this
+          image: pranusha11/happy-kitchen-api:1.0
           ports:
             - containerPort: 8000
           env:
