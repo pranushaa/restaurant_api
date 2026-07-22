@@ -8,12 +8,11 @@
 [![Redis](https://img.shields.io/badge/Redis-Caching-red?style=flat-square&logo=redis)](https://redis.io)
 [![Render](https://img.shields.io/badge/Deployed-Render-purple?style=flat-square)](https://render.com)
 [![Docker](https://img.shields.io/badge/Docker-Containerization-blue?style=flat-square&logo=docker)](https://www.docker.com)
-[![CI](https://github.com/pranushaa/restaurant_api/actions/workflows/tests.yml/badge.svg)
-](https://github.com/pranushaa/restaurant_api/actions)
+[![CI](https://github.com/pranushaa/restaurant_api/actions/workflows/tests.yml/badge.svg)](https://github.com/pranushaa/restaurant_api/actions)
 ![Rate Limiting](https://img.shields.io/badge/Rate--Limiting-Slowapi-orange)
 ![CI/CD](https://img.shields.io/badge/CI%2FCD-GitHub%20Actions-blue?logo=github-actions&logoColor=white)
 
-**Live API →** https://restaurant-api-xj8w.onrender.com/docs  
+**Live API →** https://restaurant-api-xj8w.onrender.com/docs
 **GitHub →** https://github.com/pranushaa/restaurant_api
 
 ---
@@ -37,10 +36,11 @@ A REST API that handles the backend of a restaurant:
 ---
 
 ## 🛠️ Tech Stack
-* **Backend:** Python
-* **Database:** MySQL
-* **DevOps:** Docker (Containerization & local development)
-
+* **Backend:** Python, FastAPI
+* **Database:** MySQL (Aiven Cloud)
+* **Caching:** Redis
+* **Auth:** JWT, bcrypt
+* **DevOps:** Docker, Kubernetes, GitHub Actions (CI/CD)
 
 ## 🏗️ Architecture
 
@@ -86,11 +86,17 @@ RESTAURANT_API/
 │       ├── user_repo.py
 │       ├── order_repo.py
 │       └── analytics_repo.py
+├── k8s/                           # Kubernetes manifests
+│   ├── 00-namespace.yaml
+│   ├── 01-secret.yaml
+│   ├── 02-redis-deployment.yaml
+│   ├── 03-redis-service.yaml
+│   ├── 04-api-deployment.yaml
+│   ├── 05-api-service.yaml
+│   └── README.md
 ```
 
 ---
-
-
 
 ## 🗃️ Database Design
 
@@ -125,7 +131,6 @@ RESTAURANT_API/
 - One user → many orders (1:N)
 - One menu item → many orders (1:N)
 
-
 ### Indexes Applied
 
 | Table | Column | Reason |
@@ -138,8 +143,6 @@ RESTAURANT_API/
 Indexes added on columns used in WHERE clauses to avoid full table scans.
 
 ---
-
-
 
 ## 📌 API Endpoints
 
@@ -180,8 +183,6 @@ Indexes added on columns used in WHERE clauses to avoid full table scans.
 | POST | `/healthier-alternative` | Suggest healthier option in same category |
 
 ---
-
-
 
 ## 🧠 Technical Decisions & How They Work
 
@@ -240,15 +241,14 @@ Result: Avoids full table scans on large datasets.
 Passwords hashed with bcrypt on register. On login, hash is verified and a signed JWT token is returned with a 30-minute expiry.
 
 ### JWT Protected Route Authorization
-POST /orders requires a valid JWT token.
+`POST /orders` requires a valid JWT token.
 
 Pass token in request header:
+```
 Authorization: Bearer <your_token>
+```
 
-Get token by calling POST /login first.
-Token expires in 30 minutes.
-
----
+Get token by calling `POST /login` first. Token expires in 30 minutes.
 
 ### Rate Limiting
 Brute-force protection on sensitive endpoints using slowapi.
@@ -258,6 +258,7 @@ Brute-force protection on sensitive endpoints using slowapi.
 
 Exceeding the limit returns `429 Too Many Requests`. Rate limiting is automatically disabled during automated tests (via `conftest.py`) so the test suite isn't blocked by its own requests.
 
+---
 
 ## 🔒 Security
 
@@ -270,15 +271,15 @@ Exceeding the limit returns `429 Too Many Requests`. Rate limiting is automatica
 ---
 
 ### Logging
-Structured logging added to order processing using Python's 
-built-in logging module.
+Structured logging added to order processing using Python's built-in logging module.
 
-- INFO  → successful order placed, history fetched
-- WARNING → invalid input, item not found  
+- INFO → successful order placed, history fetched
+- WARNING → invalid input, item not found
 - ERROR → transaction failures, unexpected errors
 
 Logs include user_id and item details for easy debugging.
 
+---
 
 ## 📊 Sample Requests
 
@@ -325,13 +326,60 @@ Automated tests using pytest and FastAPI's TestClient cover core functionality:
 Run tests:
 ```bash
 python -m pytest -v
+```
 
+---
 
 ## ⚙️ CI/CD
 
 - **CI:** GitHub Actions runs the full pytest suite on every push to `main`, including a live Redis service container. A broken build is caught before deployment.
 - **CD:** Render auto-deploys to production on every push to `main`.
 
+---
+
+## 🐳 Docker
+
+Local development runs the API and Redis together in containers:
+
+```bash
+docker-compose up --build
+```
+Starts API + Redis together. Test at: http://localhost:8000/docs
+
+---
+
+## ☸️ Kubernetes
+
+Set up to run the same containers on Kubernetes instead of Docker Compose — using Docker Desktop's built-in Kubernetes (Settings → Kubernetes → Enable Kubernetes) for local testing, before deploying to a real cloud cluster.
+
+Manifests live in the `k8s/` folder:
+
+| File | Purpose |
+|---|---|
+| `00-namespace.yaml` | Creates a separate namespace so this project's resources don't mix with others |
+| `01-secret.yaml` | Stores DB credentials and JWT secret key securely (never plain text) |
+| `02-redis-deployment.yaml` | Runs Redis as its own pod, auto-restarts if it crashes |
+| `03-redis-service.yaml` | Gives Redis a stable internal address (`redis`) so the API can always find it |
+| `04-api-deployment.yaml` | Runs the FastAPI app (2 replicas), injects DB/Redis config automatically |
+| `05-api-service.yaml` | Exposes the API so it can be tested from outside the cluster |
+
+**To run it:**
+```bash
+kubectl apply -f k8s/00-namespace.yaml
+kubectl apply -f k8s/01-secret.yaml
+kubectl apply -f k8s/02-redis-deployment.yaml
+kubectl apply -f k8s/03-redis-service.yaml
+kubectl apply -f k8s/04-api-deployment.yaml
+kubectl apply -f k8s/05-api-service.yaml
+
+# Check status
+kubectl get pods -n happy-kitchen
+
+# Access the service (minikube)
+minikube service happy-kitchen-api -n happy-kitchen
+```
+
+---
 
 ## ⚙️ Local Setup
 
@@ -359,7 +407,6 @@ http://localhost:8000/docs
 ```
 
 ---
-
 
 ## 📦 Dependencies
 
@@ -393,12 +440,12 @@ pytest
 - Environment Variable Management
 - Parameterized Queries (SQL Injection Prevention)
 - Clean Architecture (Routes → Services → Repository)
-- Docker 
+- Docker
+- Kubernetes
 - Rate Limiting (Brute-force Protection)
 - Automated Testing (pytest)
 
 ---
-
 
 ## 🌐 Deployment
 
@@ -415,9 +462,11 @@ Test at: http://localhost:8000/docs
 - Environment variables set in Render dashboard
 - Live docs: https://restaurant-api-xj8w.onrender.com/docs
 
+---
+
 ## 👤 Author
 
-**Pranusha Velugubantla**  
-📧 pranushav69@gmail.com  
+**Pranusha Velugubantla**
+📧 pranushav69@gmail.com
 🔗 [LinkedIn](https://www.linkedin.com/in/pranusha-velugubantla/) 
     [GitHub](https://github.com/pranushaa)

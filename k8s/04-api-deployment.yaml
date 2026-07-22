@@ -1,0 +1,65 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: happy-kitchen-api
+  namespace: happy-kitchen
+spec:
+  replicas: 2   # 2 copies = if one crashes or is busy, the other still serves traffic
+  selector:
+    matchLabels:
+      app: happy-kitchen-api
+  template:
+    metadata:
+      labels:
+        app: happy-kitchen-api
+    spec:
+      containers:
+        - name: api
+          image: yourusername/happy-kitchen-api:1.0   # <-- change this
+          ports:
+            - containerPort: 8000
+          env:
+            # Redis is found by its Service name — no IP needed
+            - name: REDIS_HOST
+              value: "redis"
+            - name: REDIS_PORT
+              value: "6379"
+
+            # Everything below is pulled from the Secret drawer,
+            # never written here in plain text
+            - name: DB_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: happy-kitchen-secrets
+                  key: DB_HOST
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: happy-kitchen-secrets
+                  key: DB_USER
+            - name: DB_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: happy-kitchen-secrets
+                  key: DB_PASS
+            - name: DB_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: happy-kitchen-secrets
+                  key: DB_NAME
+            - name: DB_PORT
+              valueFrom:
+                secretKeyRef:
+                  name: happy-kitchen-secrets
+                  key: DB_PORT
+            - name: SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: happy-kitchen-secrets
+                  key: SECRET_KEY
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 10
