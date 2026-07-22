@@ -377,6 +377,13 @@ kubectl get pods -n happy-kitchen
 
 # Access the service (minikube)
 minikube service happy-kitchen-api -n happy-kitchen
+
+# If NodePort doesn't work (common with Docker Desktop's "kind" cluster),
+# use port-forward instead:
+kubectl port-forward service/happy-kitchen-api 8000:8000 -n happy-kitchen
+
+# Then visit:
+http://localhost:8000/docs
 ```
 
 ---
